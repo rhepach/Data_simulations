@@ -1,0 +1,12 @@
+##
+require(tidyverse)#
+#
+data.maleen <- as_tibble(read.table(file="MERGED_EyeTracking.txt", header=T, sep="\t"))#
+#
+data.maleen <- data.maleen %>%#
+  mutate_if(sapply(data.maleen, is.character), as.factor)#
+levels(data.maleen$Sex) <- c("F", "M", "F")#
+#main.model <- lm(RelFixSocialMean ~ scale(Age) + scale(as.numeric(Sex), center=T, scale=F), data = data.maleen)  #
+main.model <- lm(RelFixSocialMean ~ Age + Sex, data = data.maleen)  #
+summary(main.model)#
+sd(residuals(main.model))
