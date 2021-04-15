@@ -103,6 +103,7 @@ system.time(
 repeat{
   
   a <- a + 1
+  print(a) # prints current number of simulation
   now.beta <- sample(beta.effect.pool, size=1)
   now.sample <- sample(sample.pool, size=1)
   
