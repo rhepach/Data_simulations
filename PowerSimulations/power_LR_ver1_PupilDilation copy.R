@@ -57,11 +57,12 @@ population.size = 100000
 population.data <- tibble(ID = c(1:population.size) %>% as.factor(),
                           Gender = sample(c("male", "female"), population.size, replace = T) %>%
                             as.factor(),
-                          Age.group = sample(c(10,14,24), size=population.size, replace=T),
-                          Condition = sample(c("social", "helping", "control"), population.size, replace = T) %>%
+                          Age.group = sample(c(4,10), size=population.size, replace=T),
+                          Condition = sample(c("IJA", "NOJA"), population.size, replace = T) %>%
                             as.factor()) %>% 
   mutate(Age.days = Age.group+rnorm(population.size, 0, 0.1)) %>%
   mutate(Age.scale = as.vector(scale(Age.days, scale=FALSE)))
+equal.N.levels <- length(c("IJA", "NOJA", "4", "10"))
   
 # Function to fit models.
 sample.fit.model <- function(pop.data, version, s.size, betas, pop.size, var.est){
@@ -69,12 +70,16 @@ sample.fit.model <- function(pop.data, version, s.size, betas, pop.size, var.est
   # Add dependent measure.  
   s.data = pop.data
   matrix.dummy.coding = model.matrix(object =~ Condition + Age.scale + Gender, data = s.data)
-  coefs=c("(Intercept)"= 0, "Conditionhelping" = betas, "Conditionsocial" = betas, "Age.scale"= 0 , "Gendermale"= 0)
+  coefs=c("(Intercept)"= 0, "ConditionIJA" = betas, "Age.scale"= 0 , "Gendermale"= 0)
   s.data <- s.data %>% 
     add_column(Change = as.vector(matrix.dummy.coding%*%coefs)+rnorm(n= pop.size, sd= var.est, mean=0))
   
   # Draw sample.
-  sample.data <- slice_sample(s.data, n = s.size, replace=F)
+  sample.data.4IJA <- slice_sample(s.data[c(which(s.data$Age.group=="4" & s.data$Condition=="IJA")),], n = s.size/equal.N.levels, replace=F) # Unsere Stichprobe wird sein: Identische VPAnzahl pro Altersgruppe, jedes Subjekt hat einen Wert bei IJA und einen Wert bei NOJA, das wird hier nicht abgebildet, oder? 
+  sample.data.10IJA <- slice_sample(s.data[c(which(s.data$Age.group=="10" & s.data$Condition=="IJA")),], n = s.size/equal.N.levels, replace=F)
+  sample.data.4NOJA <- slice_sample(s.data[c(which(s.data$Age.group=="4" & s.data$Condition=="NOJA")),], n = s.size/equal.N.levels, replace=F)
+  sample.data.10NOJA <- slice_sample(s.data[c(which(s.data$Age.group=="10" & s.data$Condition=="NOJA")),], n = s.size/equal.N.levels, replace=F)
+  sample.data <- rbind.data.frame(sample.data.4IJA, sample.data.10IJA, sample.data.4NOJA, sample.data.10NOJA)
   
   # Base model.
   sample.model.reduced <- lm(Change ~ Gender, data = sample.data)    
@@ -103,6 +108,7 @@ system.time(
 repeat{
   
   a <- a + 1
+  print(a)
   now.beta <- sample(beta.effect.pool, size=1)
   now.sample <- sample(sample.pool, size=1)
   
