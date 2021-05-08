@@ -6,12 +6,11 @@
 # Here a short skit...
 #
 # Dependent measure: Change in eye muscle activity, Gaussian distribution
-# Predictor 1 (Condition): Factor, 3 levels
-# We model the difference between two focal levels ('social' and 'helping') to
-# be the same in comparison to one control level ('control'). The respective 
+# Predictor 1 (Condition): Factor, 2 levels
+# We model the difference between two focal levels ('IJA' and 'NOJA'). The respective 
 # betas (reflecting the mean difference in conditions) is modeled to range
-# between 0 (no effect) and (0.112+0.056)*2 (twice the largest effect between 
-# conditions reported in Kaiser et al., 2017, p. 3-4).
+# between 0 (no effect) and (0.29 - (-0.32))*2 (twice the largest effect between 
+# conditions reported in Addabbo et al., 2019, p. 4).
 #
 # Predictor 2 (Age): Continuous
 # This effect is modeled to be 0.
@@ -20,22 +19,21 @@
 # This effect is modeled to be 0. 
 #
 # The effect parameters are set below with these commands:
-# coefs=c("(Intercept)"= 0, "Conditionhelping" = betas, "Conditionsocial" = 
-# betas, "Age.scale"= 0 , "Gendermale"= 0)
-# beta.effect.pool = seq(from=0, to = (0.112+0.056)*2, by = 0.01)
+# coefs=c("(Intercept)"= 0, "ConditionIJA" = betas, "Age.scale"= 0 , "Gendermale"= 0)
+# beta.effect.pool = seq(from=0, to = (0.29 - (-0.32))*2, by = 0.01)
 # 
-# We are modeling the residual variation to be similar to the standard deviations
-# reported in prior work, i.e., Kaiser et al., (2017).
-# The value is set here: res.var = 0.042*sqrt(24)
+# We simulated 200 datasets  with same means, sds and ANOVA p-values as Addabbo et al. (2019)
+# and calculated the mean residual variation based on these 200 simulated datasets. 
+# This value will be used here: res.var = 0.21
 # and used here: 
 # sample.fit.model(population.data, 1, now.sample, now.beta, population.size, 
 # res.var)
 #
 # We use the same value to estimate standardized Cohen's d:
-# mutate(Cohen.D = Beta.Mean/0.06, Beta.CIhigh = Beta.CIhigh/res.var, 
+# mutate(Cohen.D = Beta.Mean/0.06, Beta.CIhigh = Beta.CIhigh/res.var,  # warum /0.06?
 # Beta.CIlow = Beta.CIlow/res.var)
 #
-# Last changes 10.04. by RH 
+# Last changes 08.05. by DS 
 #
 ################################################################################
 
@@ -54,11 +52,12 @@ population.size = 100000
 population.data <- tibble(ID = c(1:population.size) %>% as.factor(),
                           Gender = sample(c("male", "female"), population.size, replace = T) %>%
                             as.factor(),
-                          Age.group = sample(c(10,14,24), size=population.size, replace=T),
-                          Condition = sample(c("social", "helping", "control"), population.size, replace = T) %>%
+                          Age.group = sample(c(4,10), size=population.size, replace=T),
+                          Condition = sample(c("IJA", "NOJA"), population.size, replace = T) %>%
                             as.factor()) %>% 
   mutate(Age.days = Age.group+rnorm(population.size, 0, 0.1)) %>%
   mutate(Age.scale = as.vector(scale(Age.days, scale=FALSE)))
+equal.N.levels <- length(c("IJA", "NOJA", "4", "10"))
 
 # Function to fit models.
 sample.fit.model <- function(pop.data, version, s.size, betas, pop.size, var.est){
@@ -71,7 +70,11 @@ sample.fit.model <- function(pop.data, version, s.size, betas, pop.size, var.est
             add_column(Change = as.vector(matrix.dummy.coding%*%coefs)+rnorm(n= pop.size, sd= var.est, mean=0))
   
   # Draw sample.
-  sample.data <- slice_sample(s.data, n = s.size, replace=F)
+  sample.data.4IJA <- slice_sample(s.data[c(which(s.data$Age.group=="4" & s.data$Condition=="IJA")),], n = s.size/equal.N.levels, replace=F) # Unsere Stichprobe wird sein: Identische VPAnzahl pro Altersgruppe, jedes Subjekt hat einen Wert bei IJA und einen Wert bei NOJA, das wird hier nicht abgebildet, oder? 
+  sample.data.10IJA <- slice_sample(s.data[c(which(s.data$Age.group=="10" & s.data$Condition=="IJA")),], n = s.size/equal.N.levels, replace=F)
+  sample.data.4NOJA <- slice_sample(s.data[c(which(s.data$Age.group=="4" & s.data$Condition=="NOJA")),], n = s.size/equal.N.levels, replace=F)
+  sample.data.10NOJA <- slice_sample(s.data[c(which(s.data$Age.group=="10" & s.data$Condition=="NOJA")),], n = s.size/equal.N.levels, replace=F)
+  sample.data <- rbind.data.frame(sample.data.4IJA, sample.data.10IJA, sample.data.4NOJA, sample.data.10NOJA)
   
   # Base model.
   sample.model.reduced <- lm(Change ~ Gender, data = sample.data)    
@@ -90,9 +93,9 @@ nr.sim = 10 # Number of simulation to be run. Set to 10 'to test the code'. Anyt
             # Note that the same value is used (1) for the number of times a sample is drawn and a model is fitted and (2)
             # for number of 1-beta values that are calculated (see below). 
 alpha = 0.05 # The 'significance' level.
-res.var = 0.042*sqrt(24)
-sample.pool = seq(from=20, to = 200, by =10)
-beta.effect.pool = seq(from=0, to = (0.112+0.056)*2, by = 0.01)
+res.var = 0.21
+sample.pool = seq(from=20, to = 200, by =12)
+beta.effect.pool = seq(from=0, to = (0.29 - (-0.32))*2, by = 0.01)
 a <- 0
 res.simulations = as_tibble(expand_grid(SimulationNr = 1:nr.sim, SampleSize = as.numeric(NA), Beta = as.numeric(NA), Power = as.numeric(NA)))
 
@@ -100,6 +103,7 @@ system.time(
 repeat{
   
   a <- a + 1
+  print(a)
   now.beta <- sample(beta.effect.pool, size=1)
   now.sample <- sample(sample.pool, size=1)
   
