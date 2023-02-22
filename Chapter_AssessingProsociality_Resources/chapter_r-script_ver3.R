@@ -51,7 +51,7 @@ slope.age.cont = as.vector(coefficients(lm(Shared ~ Condition+Age + Gender, data
 
 # Main simulation.
 to.simulate = 0 # Setting this to 1 will run the simulations. Set to 0 to load last workspace.
-nr.sims = 1000
+nr.sims = 10000
 alpha = 0.05
 sample.pool = seq(20,120,by = 5)
 res.simulations = as_tibble(expand_grid(SampleSize = sample.pool)) %>%
